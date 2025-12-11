@@ -16,15 +16,95 @@ const {
 
 const app = express();
 const server = http.createServer(app);
+
+// Security: Configure allowed origins
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:3001', 'http://localhost:5173'];
+
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.) in development
+      if (!origin && process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      if (!origin || ALLOWED_ORIGINS.includes(origin) || process.env.NODE_ENV !== 'production') {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ["GET", "POST"]
-  }
+  },
+  // Security: Limit payload size
+  maxHttpBufferSize: 1e5 // 100KB
 });
 
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
+
+// Security: Limit JSON payload size
+app.use(express.json({ limit: '10kb' }));
+
+// Security: Input validation helpers
+function sanitizeString(str, maxLength = 50) {
+  if (typeof str !== 'string') return '';
+  // Remove HTML tags and trim
+  return str.replace(/<[^>]*>/g, '').trim().substring(0, maxLength);
+}
+
+function isValidBoardIndex(index) {
+  return index === 0 || index === 1;
+}
+
+function isValidPosition(row, col) {
+  return Number.isInteger(row) && Number.isInteger(col) &&
+         row >= 0 && row <= 7 && col >= 0 && col <= 7;
+}
+
+function isValidPieceType(type) {
+  return ['k', 'q', 'r', 'b', 'n', 'p'].includes(type);
+}
+
+// Security: Rate limiting for socket connections
+const connectionAttempts = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_CONNECTIONS_PER_IP = 10;
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const attempts = connectionAttempts.get(ip) || [];
+  const recentAttempts = attempts.filter(time => now - time < RATE_LIMIT_WINDOW);
+
+  if (recentAttempts.length >= MAX_CONNECTIONS_PER_IP) {
+    return false;
+  }
+
+  recentAttempts.push(now);
+  connectionAttempts.set(ip, recentAttempts);
+  return true;
+}
+
+// Security: Clean up old rate limit entries periodically
+setInterval(() => {
+  const now = Date.now();
+  connectionAttempts.forEach((attempts, ip) => {
+    const recent = attempts.filter(time => now - time < RATE_LIMIT_WINDOW);
+    if (recent.length === 0) {
+      connectionAttempts.delete(ip);
+    } else {
+      connectionAttempts.set(ip, recent);
+    }
+  });
+}, RATE_LIMIT_WINDOW);
 
 // Serve static files from client build
 app.use(express.static(path.join(__dirname, '../client/dist')));
@@ -127,15 +207,44 @@ app.get('/api/rooms', (req, res) => {
 
 // Socket.io handling
 io.on('connection', (socket) => {
+  // Security: Rate limit connections
+  const clientIp = socket.handshake.address;
+  if (!checkRateLimit(clientIp)) {
+    socket.emit('error', { message: 'Too many connections. Please try again later.' });
+    socket.disconnect(true);
+    return;
+  }
+
   console.log('User connected:', socket.id);
 
+  // Security: Store socket's player/room association for validation
+  const socketAuth = {
+    playerId: null,
+    roomId: null
+  };
+
   socket.on('createRoom', ({ playerName }, callback) => {
+    if (typeof callback !== 'function') return;
+
+    // Security: Validate and sanitize input
+    const sanitizedName = sanitizeString(playerName, 20);
+    if (!sanitizedName || sanitizedName.length < 1) {
+      callback({ success: false, error: 'Invalid player name' });
+      return;
+    }
+
+    // Security: Prevent creating multiple rooms
+    if (socketAuth.roomId) {
+      callback({ success: false, error: 'Already in a room' });
+      return;
+    }
+
     const roomId = uuidv4().substring(0, 6).toUpperCase();
-    const room = createRoom(roomId, playerName);
+    const room = createRoom(roomId, sanitizedName);
 
     const player = {
       id: uuidv4(),
-      name: playerName,
+      name: sanitizedName,
       ready: false,
       socketId: socket.id,
       position: 0
@@ -145,6 +254,10 @@ io.on('connection', (socket) => {
     rooms.set(roomId, room);
     playerRooms.set(socket.id, roomId);
 
+    // Security: Store auth info
+    socketAuth.playerId = player.id;
+    socketAuth.roomId = roomId;
+
     socket.join(roomId);
 
     callback({ success: true, roomId, playerId: player.id, position: 0 });
@@ -152,7 +265,29 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinRoom', ({ roomId, playerName }, callback) => {
-    const room = rooms.get(roomId);
+    if (typeof callback !== 'function') return;
+
+    // Security: Validate and sanitize input
+    const sanitizedName = sanitizeString(playerName, 20);
+    const sanitizedRoomId = sanitizeString(roomId, 6).toUpperCase();
+
+    if (!sanitizedName || sanitizedName.length < 1) {
+      callback({ success: false, error: 'Invalid player name' });
+      return;
+    }
+
+    if (!sanitizedRoomId || sanitizedRoomId.length !== 6) {
+      callback({ success: false, error: 'Invalid room code' });
+      return;
+    }
+
+    // Security: Prevent joining multiple rooms
+    if (socketAuth.roomId) {
+      callback({ success: false, error: 'Already in a room' });
+      return;
+    }
+
+    const room = rooms.get(sanitizedRoomId);
 
     if (!room) {
       callback({ success: false, error: 'Room not found' });
@@ -163,38 +298,53 @@ io.on('connection', (socket) => {
       // Join as spectator
       const spectator = {
         id: uuidv4(),
-        name: playerName,
+        name: sanitizedName,
         socketId: socket.id
       };
       room.spectators.push(spectator);
-      playerRooms.set(socket.id, roomId);
-      socket.join(roomId);
+      playerRooms.set(socket.id, sanitizedRoomId);
 
-      callback({ success: true, roomId, playerId: spectator.id, isSpectator: true });
-      broadcastRoomState(roomId);
+      // Security: Store auth info
+      socketAuth.playerId = spectator.id;
+      socketAuth.roomId = sanitizedRoomId;
+
+      socket.join(sanitizedRoomId);
+
+      callback({ success: true, roomId: sanitizedRoomId, playerId: spectator.id, isSpectator: true });
+      broadcastRoomState(sanitizedRoomId);
       return;
     }
 
     const player = {
       id: uuidv4(),
-      name: playerName,
+      name: sanitizedName,
       ready: false,
       socketId: socket.id,
       position: room.players.length
     };
 
     room.players.push(player);
-    playerRooms.set(socket.id, roomId);
-    socket.join(roomId);
+    playerRooms.set(socket.id, sanitizedRoomId);
 
-    callback({ success: true, roomId, playerId: player.id, position: player.position });
-    broadcastRoomState(roomId);
+    // Security: Store auth info
+    socketAuth.playerId = player.id;
+    socketAuth.roomId = sanitizedRoomId;
 
-    // Send chat history to new player
-    socket.emit('chatHistory', room.chat);
+    socket.join(sanitizedRoomId);
+
+    callback({ success: true, roomId: sanitizedRoomId, playerId: player.id, position: player.position });
+    broadcastRoomState(sanitizedRoomId);
+
+    // Send chat history to new player (limit to last 50 messages)
+    socket.emit('chatHistory', room.chat.slice(-50));
   });
 
   socket.on('toggleReady', ({ roomId, playerId }) => {
+    // Security: Validate against socket's auth
+    if (socketAuth.roomId !== roomId || socketAuth.playerId !== playerId) {
+      return;
+    }
+
     const room = rooms.get(roomId);
     if (!room) return;
 
@@ -213,6 +363,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('getLegalMoves', ({ roomId, boardIndex, row, col }, callback) => {
+    if (typeof callback !== 'function') return;
+
+    // Security: Validate input
+    if (!isValidBoardIndex(boardIndex) || !isValidPosition(row, col)) {
+      callback({ moves: [] });
+      return;
+    }
+
     const room = rooms.get(roomId);
     if (!room || !room.gameStarted) {
       callback({ moves: [] });
@@ -225,6 +383,28 @@ io.on('connection', (socket) => {
   });
 
   socket.on('makeMove', ({ roomId, playerId, boardIndex, from, to, promotion }) => {
+    // Security: Validate against socket's auth
+    if (socketAuth.roomId !== roomId || socketAuth.playerId !== playerId) {
+      return;
+    }
+
+    // Security: Validate input
+    if (!isValidBoardIndex(boardIndex)) {
+      socket.emit('moveError', { error: 'Invalid board' });
+      return;
+    }
+
+    if (!from || !to || !isValidPosition(from.row, from.col) || !isValidPosition(to.row, to.col)) {
+      socket.emit('moveError', { error: 'Invalid position' });
+      return;
+    }
+
+    // Security: Validate promotion piece if provided
+    if (promotion && !isValidPieceType(promotion)) {
+      socket.emit('moveError', { error: 'Invalid promotion piece' });
+      return;
+    }
+
     const room = rooms.get(roomId);
     if (!room || !room.gameStarted) return;
 
@@ -285,6 +465,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('dropPiece', ({ roomId, playerId, pieceType, row, col }) => {
+    // Security: Validate against socket's auth
+    if (socketAuth.roomId !== roomId || socketAuth.playerId !== playerId) {
+      return;
+    }
+
+    // Security: Validate input
+    if (!isValidPieceType(pieceType) || !isValidPosition(row, col)) {
+      socket.emit('moveError', { error: 'Invalid input' });
+      return;
+    }
+
     const room = rooms.get(roomId);
     if (!room || !room.gameStarted) return;
 
@@ -334,6 +525,20 @@ io.on('connection', (socket) => {
   });
 
   socket.on('getDropSquares', ({ roomId, playerId, pieceType }, callback) => {
+    if (typeof callback !== 'function') return;
+
+    // Security: Validate against socket's auth
+    if (socketAuth.roomId !== roomId || socketAuth.playerId !== playerId) {
+      callback({ squares: [] });
+      return;
+    }
+
+    // Security: Validate input
+    if (!isValidPieceType(pieceType)) {
+      callback({ squares: [] });
+      return;
+    }
+
     const room = rooms.get(roomId);
     if (!room || !room.gameStarted) {
       callback({ squares: [] });
@@ -355,6 +560,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chatMessage', ({ roomId, playerId, message, isTeamOnly }) => {
+    // Security: Validate against socket's auth
+    if (socketAuth.roomId !== roomId || socketAuth.playerId !== playerId) {
+      return;
+    }
+
+    // Security: Validate and sanitize message
+    const sanitizedMessage = sanitizeString(message, 200);
+    if (!sanitizedMessage || sanitizedMessage.length < 1) {
+      return;
+    }
+
     const room = rooms.get(roomId);
     if (!room) return;
 
@@ -368,12 +584,16 @@ io.on('connection', (socket) => {
       id: uuidv4(),
       sender: sender.name,
       senderId: sender.id,
-      message,
-      isTeamOnly,
+      message: sanitizedMessage,
+      isTeamOnly: Boolean(isTeamOnly),
       team: player ? getPlayerTeam(player.position) : null,
       timestamp: Date.now()
     };
 
+    // Security: Limit chat history to prevent memory issues
+    if (room.chat.length > 200) {
+      room.chat = room.chat.slice(-100);
+    }
     room.chat.push(chatMessage);
 
     if (isTeamOnly && player) {
@@ -390,6 +610,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('restartGame', ({ roomId }) => {
+    // Security: Validate against socket's auth
+    if (socketAuth.roomId !== roomId) {
+      return;
+    }
+
     const room = rooms.get(roomId);
     if (!room) return;
 
@@ -404,7 +629,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leaveRoom', ({ roomId, playerId }) => {
+    // Security: Validate against socket's auth
+    if (socketAuth.roomId !== roomId || socketAuth.playerId !== playerId) {
+      return;
+    }
+
     handlePlayerLeave(socket, roomId, playerId);
+    socketAuth.roomId = null;
+    socketAuth.playerId = null;
   });
 
   socket.on('disconnect', () => {
@@ -461,6 +693,25 @@ function handlePlayerLeave(socket, roomId, playerId) {
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
+
+// Security: Clean up abandoned rooms periodically (every 5 minutes)
+const ROOM_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  rooms.forEach((room, roomId) => {
+    // Remove rooms older than 30 minutes with no active players
+    if (room.players.length === 0 && now - room.createdAt > ROOM_TIMEOUT) {
+      rooms.delete(roomId);
+      console.log(`Cleaned up abandoned room: ${roomId}`);
+    }
+    // Also clean up rooms that have been inactive for too long
+    // (players still listed but likely disconnected without proper cleanup)
+    if (now - room.createdAt > ROOM_TIMEOUT * 2) {
+      rooms.delete(roomId);
+      console.log(`Cleaned up stale room: ${roomId}`);
+    }
+  });
+}, 5 * 60 * 1000);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
