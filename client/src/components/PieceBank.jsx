@@ -12,15 +12,15 @@ const PIECE_SYMBOLS = {
 
 const PIECE_ORDER = ['q', 'r', 'b', 'n', 'p'];
 
-function PieceBank({ playerPosition, isOwnBank, onPieceSelect }) {
-  const { gameState, getPlayerColor } = useGame();
+function PieceBank({ playerPosition, isOwnBank, onPieceSelect, vertical = false }) {
+  const { gameState } = useGame();
 
   if (!gameState) return null;
 
   const bank = gameState.pieceBanks[playerPosition] || [];
   const playerColor = playerPosition % 2 === 0 ? 'w' : 'b';
 
-  // Group pieces by type
+  // Group pieces by type and count
   const groupedPieces = PIECE_ORDER.reduce((acc, type) => {
     acc[type] = bank.filter(p => p.type === type).length;
     return acc;
@@ -41,11 +41,10 @@ function PieceBank({ playerPosition, isOwnBank, onPieceSelect }) {
     }
   };
 
+  const bankClass = `piece-bank ${vertical ? 'vertical' : 'horizontal'} ${isOwnBank ? 'own-bank' : 'partner-bank'}`;
+
   return (
-    <div className={`piece-bank ${isOwnBank ? 'own-bank' : 'opponent-bank'}`}>
-      <div className="bank-label">
-        {isOwnBank ? 'Your Bank' : 'Bank'}
-      </div>
+    <div className={bankClass}>
       <div className="bank-pieces">
         {PIECE_ORDER.map(type => {
           const count = groupedPieces[type];
@@ -62,13 +61,10 @@ function PieceBank({ playerPosition, isOwnBank, onPieceSelect }) {
               <span className={`piece-symbol ${playerColor === 'w' ? 'white-piece' : 'black-piece'}`}>
                 {PIECE_SYMBOLS[type][playerColor]}
               </span>
-              {count > 1 && <span className="piece-count">×{count}</span>}
+              {count > 1 && <span className="piece-count">{count}</span>}
             </div>
           );
         })}
-        {bank.length === 0 && (
-          <div className="empty-bank">Empty</div>
-        )}
       </div>
     </div>
   );

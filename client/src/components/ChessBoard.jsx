@@ -11,7 +11,7 @@ const PIECE_SYMBOLS = {
   p: { w: '♙', b: '♟' }
 };
 
-const ChessBoard = forwardRef(function ChessBoard({ boardIndex, board, isPlayerBoard, playerColor, currentTurn }, ref) {
+const ChessBoard = forwardRef(function ChessBoard({ boardIndex, board, isPlayerBoard, playerColor, currentTurn, isMainBoard = true }, ref) {
   const { getLegalMoves, makeMove, dropPiece, getDropSquares, playerPosition, gameState } = useGame();
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [legalMoves, setLegalMoves] = useState([]);
@@ -21,7 +21,7 @@ const ChessBoard = forwardRef(function ChessBoard({ boardIndex, board, isPlayerB
   const [draggedPiece, setDraggedPiece] = useState(null);
   const boardRef = useRef(null);
 
-  // Flip board for black players
+  // Flip board based on player color - black sees board flipped
   const shouldFlip = playerColor === 'b';
 
   // Check if it's player's turn
@@ -240,16 +240,10 @@ const ChessBoard = forwardRef(function ChessBoard({ boardIndex, board, isPlayerB
     );
   };
 
-  const boardClasses = `chess-board ${isPlayerBoard ? 'player-board' : 'opponent-board'} ${isMyTurn ? 'my-turn' : ''}`;
+  const boardClasses = `chess-board ${isPlayerBoard ? 'player-board' : 'opponent-board'} ${isMyTurn ? 'my-turn' : ''} ${isMainBoard ? 'main-board' : 'partner-board'}`;
 
   return (
-    <div className="board-wrapper" ref={boardRef}>
-      <div className="board-header">
-        <span className="board-label">Board {boardIndex + 1}</span>
-        <span className={`turn-indicator ${currentTurn === 'w' ? 'white-turn' : 'black-turn'}`}>
-          {currentTurn === 'w' ? 'White' : 'Black'}'s turn
-        </span>
-      </div>
+    <div className={`board-wrapper ${isMainBoard ? 'main' : 'partner'}`} ref={boardRef}>
       <div className={boardClasses}>
         {Array.from({ length: 8 }, (_, row) =>
           Array.from({ length: 8 }, (_, col) => renderSquare(row, col))

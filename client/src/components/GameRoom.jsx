@@ -17,14 +17,11 @@ function GameRoom() {
     leaveRoom,
     getPlayerBoard,
     getPlayerColor,
-    getPlayerTeam,
-    getDropSquares,
-    dropPiece
+    getPlayerTeam
   } = useGame();
 
   const [chatCollapsed, setChatCollapsed] = useState(true);
-  const board1Ref = useRef(null);
-  const board2Ref = useRef(null);
+  const mainBoardRef = useRef(null);
 
   const playerBoard = getPlayerBoard();
   const playerColor = getPlayerColor();
@@ -47,6 +44,16 @@ function GameRoom() {
     return teammates[pos];
   };
 
+  // Get which board a player plays on
+  const getPlayerBoardIndex = (pos) => {
+    return pos < 2 ? 0 : 1;
+  };
+
+  // Get player's color by position
+  const getColorByPosition = (pos) => {
+    return pos % 2 === 0 ? 'w' : 'b';
+  };
+
   // Get player info by position
   const getPlayerByPosition = (pos) => {
     return roomState.players.find(p => p.position === pos);
@@ -54,87 +61,40 @@ function GameRoom() {
 
   const handlePieceSelect = useCallback((pieceType) => {
     if (isSpectator) return;
-
-    const boardRef = playerBoard === 0 ? board1Ref : board2Ref;
-    if (boardRef.current && boardRef.current.handleBankPieceDrop) {
-      boardRef.current.handleBankPieceDrop(pieceType);
+    if (mainBoardRef.current && mainBoardRef.current.handleBankPieceDrop) {
+      mainBoardRef.current.handleBankPieceDrop(pieceType);
     }
-  }, [playerBoard, isSpectator]);
+  }, [isSpectator]);
 
-  const renderBoardSection = (boardIndex) => {
-    const board = boards[boardIndex]?.board || [];
-    const currentTurn = boards[boardIndex]?.turn;
-    const isPlayerBoard = playerBoard === boardIndex;
+  // Calculate board indices and colors
+  const myBoardIndex = playerBoard;
+  const partnerPosition = getTeammate(playerPosition);
+  const partnerBoardIndex = getPlayerBoardIndex(partnerPosition);
+  const partnerColor = getColorByPosition(partnerPosition);
 
-    // Positions for this board
-    const whitePos = boardIndex === 0 ? 0 : 2;
-    const blackPos = boardIndex === 0 ? 1 : 3;
+  // Get board data
+  const myBoard = boards[myBoardIndex]?.board || [];
+  const myTurn = boards[myBoardIndex]?.turn;
+  const partnerBoard = boards[partnerBoardIndex]?.board || [];
+  const partnerTurn = boards[partnerBoardIndex]?.turn;
 
-    const whitePlayer = getPlayerByPosition(whitePos);
-    const blackPlayer = getPlayerByPosition(blackPos);
+  // Get player names for display
+  const myPlayer = getPlayerByPosition(playerPosition);
+  const partnerPlayer = getPlayerByPosition(partnerPosition);
 
-    return (
-      <div className={`board-section ${isPlayerBoard ? 'player-section' : ''}`}>
-        <div className="board-players">
-          {/* Top player (opponent from player's perspective or black if spectating) */}
-          <div className={`player-info ${currentTurn === 'b' ? 'active-turn' : ''} ${blackPos === playerPosition ? 'is-you' : ''}`}>
-            <span className="player-color black"></span>
-            <span className="player-name">
-              {blackPlayer?.name || 'Waiting...'}
-              {blackPos === playerPosition && ' (You)'}
-            </span>
-            <span className={`team-badge team-${getPlayerTeamByPos(blackPos)}`}>
-              Team {getPlayerTeamByPos(blackPos)}
-            </span>
-          </div>
-        </div>
+  // Get opponents on my board
+  const myOpponentPosition = myBoardIndex === 0
+    ? (playerColor === 'w' ? 1 : 0)
+    : (playerColor === 'w' ? 3 : 2);
+  const myOpponent = getPlayerByPosition(myOpponentPosition);
 
-        <div className="board-and-banks">
-          {/* Opponent's bank (top) */}
-          <PieceBank
-            playerPosition={playerColor === 'w' ? blackPos : whitePos}
-            isOwnBank={false}
-          />
+  // Get partner's opponent
+  const partnerOpponentPosition = partnerBoardIndex === 0
+    ? (partnerColor === 'w' ? 1 : 0)
+    : (partnerColor === 'w' ? 3 : 2);
+  const partnerOpponent = getPlayerByPosition(partnerOpponentPosition);
 
-          <ChessBoard
-            ref={boardIndex === 0 ? board1Ref : board2Ref}
-            boardIndex={boardIndex}
-            board={board}
-            isPlayerBoard={isPlayerBoard && !isSpectator}
-            playerColor={isSpectator ? 'w' : playerColor}
-            currentTurn={currentTurn}
-          />
-
-          {/* Player's bank (bottom) - only show for player's board */}
-          {isPlayerBoard && !isSpectator && (
-            <PieceBank
-              playerPosition={playerPosition}
-              isOwnBank={true}
-              onPieceSelect={handlePieceSelect}
-            />
-          )}
-        </div>
-
-        <div className="board-players">
-          {/* Bottom player (player's color or white if spectating) */}
-          <div className={`player-info ${currentTurn === 'w' ? 'active-turn' : ''} ${whitePos === playerPosition ? 'is-you' : ''}`}>
-            <span className="player-color white"></span>
-            <span className="player-name">
-              {whitePlayer?.name || 'Waiting...'}
-              {whitePos === playerPosition && ' (You)'}
-            </span>
-            <span className={`team-badge team-${getPlayerTeamByPos(whitePos)}`}>
-              Team {getPlayerTeamByPos(whitePos)}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const getPlayerTeamByPos = (pos) => {
-    return pos % 2 === 0 ? 'A' : 'B';
-  };
+  const isMyTurn = myTurn === playerColor;
 
   return (
     <div className="game-room">
@@ -183,12 +143,78 @@ function GameRoom() {
       )}
 
       <div className="game-content">
-        <div className="boards-container">
-          {renderBoardSection(0)}
-          <div className="boards-divider">
-            <div className="vs-badge">VS</div>
+        {/* Main Board Section - Player's Board */}
+        <div className="main-board-section">
+          {/* Opponent info (top) */}
+          <div className={`player-bar opponent ${myTurn !== playerColor ? '' : 'active-turn'}`}>
+            <span className={`player-color-dot ${playerColor === 'w' ? 'black' : 'white'}`}></span>
+            <span className="player-name">{myOpponent?.name || 'Opponent'}</span>
           </div>
-          {renderBoardSection(1)}
+
+          <div className="main-board-container">
+            {/* Piece bank on the left */}
+            <PieceBank
+              playerPosition={playerPosition}
+              isOwnBank={true}
+              onPieceSelect={handlePieceSelect}
+              vertical={true}
+            />
+
+            {/* Main chess board */}
+            <ChessBoard
+              ref={mainBoardRef}
+              boardIndex={myBoardIndex}
+              board={myBoard}
+              isPlayerBoard={!isSpectator}
+              playerColor={playerColor}
+              currentTurn={myTurn}
+              isMainBoard={true}
+            />
+          </div>
+
+          {/* Player info (bottom) */}
+          <div className={`player-bar self ${isMyTurn ? 'active-turn' : ''}`}>
+            <span className={`player-color-dot ${playerColor}`}></span>
+            <span className="player-name">{myPlayer?.name || 'You'} (You)</span>
+          </div>
+        </div>
+
+        {/* Partner Board Section */}
+        <div className="partner-board-section">
+          <div className="partner-header">
+            <span className="partner-label">Partner's Board</span>
+          </div>
+
+          {/* Partner's opponent (top) */}
+          <div className={`player-bar small opponent ${partnerTurn !== partnerColor ? '' : 'active-turn'}`}>
+            <span className={`player-color-dot ${partnerColor === 'w' ? 'black' : 'white'}`}></span>
+            <span className="player-name">{partnerOpponent?.name || 'Opponent'}</span>
+          </div>
+
+          <div className="partner-board-container">
+            {/* Partner's chess board */}
+            <ChessBoard
+              boardIndex={partnerBoardIndex}
+              board={partnerBoard}
+              isPlayerBoard={false}
+              playerColor={partnerColor}
+              currentTurn={partnerTurn}
+              isMainBoard={false}
+            />
+
+            {/* Partner's piece bank */}
+            <PieceBank
+              playerPosition={partnerPosition}
+              isOwnBank={false}
+              vertical={true}
+            />
+          </div>
+
+          {/* Partner info (bottom) */}
+          <div className={`player-bar small self ${partnerTurn === partnerColor ? 'active-turn' : ''}`}>
+            <span className={`player-color-dot ${partnerColor}`}></span>
+            <span className="player-name">{partnerPlayer?.name || 'Partner'}</span>
+          </div>
         </div>
       </div>
 
