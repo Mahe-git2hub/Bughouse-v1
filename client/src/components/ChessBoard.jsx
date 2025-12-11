@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useGame } from '../context/GameContext';
 import ChessPiece from './ChessPiece';
 
@@ -11,7 +11,7 @@ const PIECE_SYMBOLS = {
   p: { w: '♙', b: '♟' }
 };
 
-function ChessBoard({ boardIndex, board, isPlayerBoard, playerColor, currentTurn }) {
+const ChessBoard = forwardRef(function ChessBoard({ boardIndex, board, isPlayerBoard, playerColor, currentTurn }, ref) {
   const { getLegalMoves, makeMove, dropPiece, getDropSquares, playerPosition, gameState } = useGame();
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [legalMoves, setLegalMoves] = useState([]);
@@ -186,12 +186,10 @@ function ChessBoard({ boardIndex, board, isPlayerBoard, playerColor, currentTurn
     setLegalMoves([]);
   }, [isPlayerBoard, isMyTurn, getDropSquares]);
 
-  // Expose drop handler to parent
-  useEffect(() => {
-    if (boardRef.current) {
-      boardRef.current.handleBankPieceDrop = handleBankPieceDrop;
-    }
-  }, [handleBankPieceDrop]);
+  // Expose drop handler to parent via ref
+  useImperativeHandle(ref, () => ({
+    handleBankPieceDrop
+  }), [handleBankPieceDrop]);
 
   const renderSquare = (row, col) => {
     const displayRow = shouldFlip ? 7 - row : row;
@@ -281,6 +279,6 @@ function ChessBoard({ boardIndex, board, isPlayerBoard, playerColor, currentTurn
       )}
     </div>
   );
-}
+});
 
 export default ChessBoard;

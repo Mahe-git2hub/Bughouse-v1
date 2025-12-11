@@ -52,11 +52,11 @@ function GameRoom() {
     return roomState.players.find(p => p.position === pos);
   };
 
-  const handlePieceSelect = useCallback(async (pieceType) => {
+  const handlePieceSelect = useCallback((pieceType) => {
     if (isSpectator) return;
 
     const boardRef = playerBoard === 0 ? board1Ref : board2Ref;
-    if (boardRef.current?.handleBankPieceDrop) {
+    if (boardRef.current && boardRef.current.handleBankPieceDrop) {
       boardRef.current.handleBankPieceDrop(pieceType);
     }
   }, [playerBoard, isSpectator]);
