@@ -192,13 +192,13 @@ const ChessBoard = forwardRef(function ChessBoard({ boardIndex, board, isPlayerB
   }), [handleBankPieceDrop]);
 
   const renderSquare = (row, col) => {
-    const displayRow = shouldFlip ? 7 - row : row;
-    const displayCol = shouldFlip ? 7 - col : col;
-    const actualRow = shouldFlip ? 7 - displayRow : displayRow;
-    const actualCol = shouldFlip ? 7 - displayCol : displayCol;
+    // Calculate actual board position based on flip
+    const actualRow = shouldFlip ? 7 - row : row;
+    const actualCol = shouldFlip ? 7 - col : col;
 
     const piece = board[actualRow][actualCol];
-    const isLight = (displayRow + displayCol) % 2 === 0;
+    // Square color based on screen position (not flipped)
+    const isLight = (row + col) % 2 === 0;
     const isSelected = selectedSquare?.row === actualRow && selectedSquare?.col === actualCol;
     const isLegalMove = legalMoves.some(m => m.toRow === actualRow && m.toCol === actualCol);
     const isDropSquare = dropSquares.some(s => s.row === actualRow && s.col === actualCol);
@@ -212,7 +212,7 @@ const ChessBoard = forwardRef(function ChessBoard({ boardIndex, board, isPlayerB
 
     return (
       <div
-        key={`${displayRow}-${displayCol}`}
+        key={`${row}-${col}`}
         className={squareClass}
         onClick={() => handleSquareClick(actualRow, actualCol)}
         onDragOver={handleDragOver}
@@ -229,12 +229,12 @@ const ChessBoard = forwardRef(function ChessBoard({ boardIndex, board, isPlayerB
         {isLegalMove && !piece && <div className="move-indicator" />}
         {isDropSquare && <div className="drop-indicator" />}
 
-        {/* Rank and file labels */}
-        {displayCol === 0 && (
-          <span className="rank-label">{8 - displayRow}</span>
+        {/* Rank and file labels - show actual chess notation */}
+        {col === 0 && (
+          <span className="rank-label">{8 - actualRow}</span>
         )}
-        {displayRow === 7 && (
-          <span className="file-label">{String.fromCharCode(97 + displayCol)}</span>
+        {row === 7 && (
+          <span className="file-label">{String.fromCharCode(97 + actualCol)}</span>
         )}
       </div>
     );
