@@ -485,7 +485,12 @@ function makeMove(gameState, fromRow, fromCol, toRow, toCol, promotion = null) {
       castling: move.castling,
       enPassant: move.enPassant,
       promotion: promotion
-    }]
+    }],
+    // Reset game-over flags - they will be recalculated below
+    isCheck: false,
+    isCheckmate: false,
+    isStalemate: false,
+    winner: null
   };
 
   // Check for check/checkmate/stalemate
@@ -561,7 +566,12 @@ function dropPiece(gameState, pieceType, row, col, color) {
       pieceType: pieceType,
       to: { row, col },
       color: color
-    }]
+    }],
+    // Reset game-over flags - they will be recalculated below
+    isCheck: false,
+    isCheckmate: false,
+    isStalemate: false,
+    winner: null
   };
 
   // Check for check/checkmate/stalemate
@@ -599,7 +609,12 @@ function getValidDropSquares(board, pieceType, color) {
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
       if (canDropPiece(board, pieceType, row, col, color)) {
-        validSquares.push({ row, col });
+        // Also check if drop would leave own king in check
+        const testBoard = cloneBoard(board);
+        testBoard[row][col] = { type: pieceType, color: color };
+        if (!isInCheck(testBoard, color)) {
+          validSquares.push({ row, col });
+        }
       }
     }
   }
