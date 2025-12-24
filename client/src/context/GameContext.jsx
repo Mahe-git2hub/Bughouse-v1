@@ -175,7 +175,10 @@ export function GameProvider({ children }) {
 
   const getPlayerColor = useCallback(() => {
     if (playerPosition === null) return null;
-    return playerPosition % 2 === 0 ? 'w' : 'b';
+    // Bughouse: teammates play opposite colors on different boards
+    // Board 0: Position 0 = White, Position 1 = Black
+    // Board 1: Position 2 = Black, Position 3 = White
+    return (playerPosition === 0 || playerPosition === 3) ? 'w' : 'b';
   }, [playerPosition]);
 
   const getPlayerTeam = useCallback(() => {

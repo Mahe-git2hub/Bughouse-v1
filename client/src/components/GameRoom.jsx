@@ -49,9 +49,11 @@ function GameRoom() {
     return pos < 2 ? 0 : 1;
   };
 
-  // Get player's color by position
+  // Get player's color by position (Bughouse: teammates play opposite colors)
   const getColorByPosition = (pos) => {
-    return pos % 2 === 0 ? 'w' : 'b';
+    // Board 0: Position 0 = White, Position 1 = Black
+    // Board 1: Position 2 = Black, Position 3 = White
+    return (pos === 0 || pos === 3) ? 'w' : 'b';
   };
 
   // Get player info by position

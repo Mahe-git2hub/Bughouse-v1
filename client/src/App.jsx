@@ -3,6 +3,7 @@ import { GameProvider, useGame } from './context/GameContext';
 import Lobby from './components/Lobby';
 import WaitingRoom from './components/WaitingRoom';
 import GameRoom from './components/GameRoom';
+import InstallPrompt from './components/InstallPrompt';
 
 function AppContent() {
   const { roomId, roomState } = useGame();
@@ -23,6 +24,7 @@ function App() {
     <GameProvider>
       <div className="app">
         <AppContent />
+        <InstallPrompt />
       </div>
     </GameProvider>
   );

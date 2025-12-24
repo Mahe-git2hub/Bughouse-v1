@@ -46,6 +46,13 @@ html, body {
   background: var(--bg-primary);
   color: var(--text-primary);
   overflow-x: hidden;
+  /* PWA: Prevent pull-to-refresh */
+  overscroll-behavior-y: contain;
+  /* PWA: Safe area for notched devices */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 #root {
@@ -1330,5 +1337,82 @@ html, body {
   .game-content {
     flex-direction: row;
     padding: 5px 15px;
+  }
+}
+
+/* PWA Install Banner */
+.install-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.install-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.install-banner-icon {
+  font-size: 2rem;
+}
+
+.install-banner-text h4 {
+  font-size: 0.875rem;
+  margin: 0 0 2px 0;
+}
+
+.install-banner-text p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.install-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.install-banner-actions .btn {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+}
+
+.install-banner-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* Standalone mode adjustments (when running as installed PWA) */
+@media (display-mode: standalone) {
+  .game-header {
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+
+  .install-banner {
+    display: none;
   }
 }

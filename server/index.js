@@ -113,13 +113,14 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 const rooms = new Map();
 const playerRooms = new Map(); // Maps socket.id to roomId
 
-// Team structure:
-// Team A: Player 0 (Board 1, White) + Player 2 (Board 2, White)
-// Team B: Player 1 (Board 1, Black) + Player 3 (Board 2, Black)
-// When Player 0 captures, piece goes to Player 2's bank
-// When Player 1 captures, piece goes to Player 3's bank
-// When Player 2 captures, piece goes to Player 0's bank
-// When Player 3 captures, piece goes to Player 1's bank
+// Team structure for Bughouse:
+// Teammates play OPPOSITE colors on different boards
+// Team A: Player 0 (Board 0, White) + Player 2 (Board 1, Black)
+// Team B: Player 1 (Board 0, Black) + Player 3 (Board 1, White)
+// When Player 0 captures, piece goes to Player 2's bank (teammate)
+// When Player 1 captures, piece goes to Player 3's bank (teammate)
+// When Player 2 captures, piece goes to Player 0's bank (teammate)
+// When Player 3 captures, piece goes to Player 1's bank (teammate)
 
 function createRoom(roomId, hostName) {
   return {
@@ -129,11 +130,11 @@ function createRoom(roomId, hostName) {
     gameStarted: false,
     boards: [createGameState(), createGameState()], // Two boards
     pieceBanks: {
-      // Banks for each player position
-      0: [], // Board 1 White's bank (receives from teammate Player 2)
-      1: [], // Board 1 Black's bank (receives from teammate Player 3)
-      2: [], // Board 2 White's bank (receives from teammate Player 0)
-      3: []  // Board 2 Black's bank (receives from teammate Player 1)
+      // Banks for each player position (receives captures from teammate)
+      0: [], // Board 0 White's bank (receives from teammate Player 2 - Board 1 Black)
+      1: [], // Board 0 Black's bank (receives from teammate Player 3 - Board 1 White)
+      2: [], // Board 1 Black's bank (receives from teammate Player 0 - Board 0 White)
+      3: []  // Board 1 White's bank (receives from teammate Player 1 - Board 0 Black)
     },
     chat: [],
     createdAt: Date.now(),
@@ -152,7 +153,11 @@ function getPlayerBoard(playerIndex) {
 }
 
 function getPlayerColor(playerIndex) {
-  return playerIndex % 2 === 0 ? COLORS.WHITE : COLORS.BLACK;
+  // Bughouse: teammates play opposite colors on different boards
+  // Board 0: Position 0 = White, Position 1 = Black
+  // Board 1: Position 2 = Black, Position 3 = White
+  // This means: Positions 0,3 are White; Positions 1,2 are Black
+  return (playerIndex === 0 || playerIndex === 3) ? COLORS.WHITE : COLORS.BLACK;
 }
 
 function getPlayerTeam(playerIndex) {
