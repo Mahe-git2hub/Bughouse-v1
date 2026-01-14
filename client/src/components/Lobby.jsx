@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 
 function Lobby() {
-  const { connected, createRoom, joinRoom, error } = useGame();
+  const { connected, connecting, createRoom, joinRoom, error } = useGame();
   const [playerName, setPlayerName] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [rooms, setRooms] = useState([]);
@@ -48,14 +48,15 @@ function Lobby() {
     }
   };
 
-  if (!connected) {
+  if (!connected || connecting) {
     return (
       <div className="lobby">
         <div className="lobby-container">
           <h1 className="lobby-title">Bughouse Chess</h1>
           <div className="connecting">
             <div className="spinner"></div>
-            <p>Connecting to server...</p>
+            <p>{connecting ? 'Connecting to server...' : 'Reconnecting...'}</p>
+            {error && <p className="error-message">{error}</p>}
           </div>
         </div>
       </div>

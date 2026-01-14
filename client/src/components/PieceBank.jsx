@@ -18,7 +18,8 @@ function PieceBank({ playerPosition, isOwnBank, onPieceSelect, vertical = false 
   if (!gameState) return null;
 
   const bank = gameState.pieceBanks[playerPosition] || [];
-  const playerColor = playerPosition % 2 === 0 ? 'w' : 'b';
+  // Bughouse: Position 0, 3 = White; Position 1, 2 = Black
+  const playerColor = (playerPosition === 0 || playerPosition === 3) ? 'w' : 'b';
 
   // Group pieces by type and count
   const groupedPieces = PIECE_ORDER.reduce((acc, type) => {

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="64" fill="#1a1a2e"/>
-  <text x="256" y="320" font-size="280" text-anchor="middle" fill="#779556">♞</text>
+  <rect width="512" height="512" rx="64" fill="#312e2b"/>
+  <text x="256" y="320" font-size="280" text-anchor="middle" fill="#81b64c">♞</text>
   <text x="256" y="450" font-size="80" text-anchor="middle" fill="#ebecd0" font-family="Arial, sans-serif" font-weight="bold">BH</text>
 </svg>

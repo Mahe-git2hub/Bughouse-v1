@@ -1,13 +1,39 @@
 {
   "name": "Bughouse Chess",
   "short_name": "Bughouse",
-  "description": "4-Player Team Chess Game - Play with friends!",
+  "description": "4-Player Team Chess Game - Play with friends online!",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#312e2b",
+  "theme_color": "#312e2b",
   "orientation": "any",
   "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "/icons/icon.svg",
       "sizes": "any",
@@ -17,12 +43,29 @@
     {
       "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/svg+xml"
     }
   ],
   "categories": ["games", "entertainment"],
   "prefer_related_applications": false,
   "scope": "/",
-  "lang": "en"
+  "lang": "en",
+  "screenshots": [
+    {
+      "src": "/screenshots/game.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Bughouse Chess gameplay"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Room",
+      "url": "/?action=create",
+      "description": "Create a new game room"
+    }
+  ],
+  "related_applications": [],
+  "handle_links": "preferred"
 }

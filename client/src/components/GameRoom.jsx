@@ -87,15 +87,17 @@ function GameRoom() {
   const partnerPlayer = getPlayerByPosition(partnerPosition);
 
   // Get opponents on my board
+  // Board 0: Position 0 = White, Position 1 = Black
+  // Board 1: Position 3 = White, Position 2 = Black
   const myOpponentPosition = myBoardIndex === 0
     ? (playerColor === 'w' ? 1 : 0)
-    : (playerColor === 'w' ? 3 : 2);
+    : (playerColor === 'w' ? 2 : 3);
   const myOpponent = getPlayerByPosition(myOpponentPosition);
 
   // Get partner's opponent
   const partnerOpponentPosition = partnerBoardIndex === 0
     ? (partnerColor === 'w' ? 1 : 0)
-    : (partnerColor === 'w' ? 3 : 2);
+    : (partnerColor === 'w' ? 2 : 3);
   const partnerOpponent = getPlayerByPosition(partnerOpponentPosition);
 
   const isMyTurn = myTurn === playerColor;
@@ -157,7 +159,7 @@ function GameRoom() {
         {/* Main Board Section - Player's Board */}
         <div className="main-board-section">
           {/* Opponent info (top) */}
-          <div className={`player-bar opponent ${myTurn !== playerColor ? '' : 'active-turn'}`}>
+          <div className={`player-bar opponent ${myTurn !== playerColor ? 'active-turn' : ''}`}>
             <span className={`player-color-dot ${playerColor === 'w' ? 'black' : 'white'}`}></span>
             <span className="player-name">{myOpponent?.name || 'Opponent'}</span>
           </div>
@@ -197,7 +199,7 @@ function GameRoom() {
           </div>
 
           {/* Partner's opponent (top) */}
-          <div className={`player-bar small opponent ${partnerTurn !== partnerColor ? '' : 'active-turn'}`}>
+          <div className={`player-bar small opponent ${partnerTurn !== partnerColor ? 'active-turn' : ''}`}>
             <span className={`player-color-dot ${partnerColor === 'w' ? 'black' : 'white'}`}></span>
             <span className="player-name">{partnerOpponent?.name || 'Opponent'}</span>
           </div>

@@ -1325,6 +1325,74 @@ html, body {
   .btn:active {
     transform: scale(0.98);
   }
+
+  .square:active {
+    opacity: 0.8;
+  }
+
+  .promotion-piece:active {
+    transform: scale(1.1);
+    border-color: var(--accent-primary);
+  }
+}
+
+/* Very small screens (phones in portrait) */
+@media (max-width: 400px) {
+  :root {
+    --main-board-size: min(95vw, 42vh);
+    --partner-board-size: min(48vw, 20vh);
+  }
+
+  .lobby-title {
+    font-size: 1.75rem;
+  }
+
+  .lobby-subtitle {
+    font-size: 1rem;
+  }
+
+  .game-header {
+    padding: 4px 8px;
+  }
+
+  .game-header .room-code {
+    font-size: 0.75rem;
+  }
+
+  .player-bar {
+    padding: 6px 10px;
+  }
+
+  .player-bar .player-name {
+    font-size: 0.75rem;
+  }
+
+  .piece-bank {
+    padding: 4px;
+    min-width: 40px;
+  }
+
+  .bank-piece {
+    min-width: 30px;
+    min-height: 30px;
+  }
+
+  .piece-symbol {
+    font-size: 1.5rem;
+  }
+
+  .chat-container {
+    width: calc(100vw - 20px);
+    bottom: 10px;
+    right: 10px;
+  }
+
+  .chat-toggle {
+    width: 44px;
+    height: 44px;
+    bottom: 10px;
+    right: 10px;
+  }
 }
 
 /* Landscape mobile */

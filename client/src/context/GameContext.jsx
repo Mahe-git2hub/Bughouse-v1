@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 
 const GameContext = createContext(null);
@@ -8,6 +8,7 @@ const SOCKET_URL = import.meta.env.PROD ? window.location.origin : 'http://local
 export function GameProvider({ children }) {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [connecting, setConnecting] = useState(true);
   const [roomId, setRoomId] = useState(null);
   const [playerId, setPlayerId] = useState(null);
   const [playerName, setPlayerName] = useState('');
@@ -18,21 +19,47 @@ export function GameProvider({ children }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [error, setError] = useState(null);
   const [gameOver, setGameOver] = useState(null);
+  const reconnectAttempts = useRef(0);
 
-  // Initialize socket connection
+  // Initialize socket connection with reconnection handling
   useEffect(() => {
     const newSocket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
 
     newSocket.on('connect', () => {
       setConnected(true);
+      setConnecting(false);
+      reconnectAttempts.current = 0;
       console.log('Connected to server');
     });
 
-    newSocket.on('disconnect', () => {
+    newSocket.on('disconnect', (reason) => {
       setConnected(false);
-      console.log('Disconnected from server');
+      console.log('Disconnected from server:', reason);
+      if (reason === 'io server disconnect') {
+        newSocket.connect();
+      }
+    });
+
+    newSocket.on('connect_error', (err) => {
+      setConnecting(true);
+      reconnectAttempts.current++;
+      console.log('Connection error:', err.message);
+      if (reconnectAttempts.current >= 10) {
+        setError('Unable to connect to server. Please refresh the page.');
+      }
+    });
+
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log('Reconnected after', attemptNumber, 'attempts');
+      setConnected(true);
+      setConnecting(false);
     });
 
     newSocket.on('roomState', (state) => {
@@ -189,6 +216,7 @@ export function GameProvider({ children }) {
   const value = {
     socket,
     connected,
+    connecting,
     roomId,
     playerId,
     playerName,

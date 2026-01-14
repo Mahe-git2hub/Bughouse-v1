@@ -17,6 +17,16 @@ const {
 const app = express();
 const server = http.createServer(app);
 
+// Health check endpoint for load balancers and monitoring
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    rooms: rooms.size
+  });
+});
+
 // Security: Configure allowed origins
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')

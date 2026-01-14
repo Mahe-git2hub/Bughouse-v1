@@ -97,14 +97,14 @@ function WaitingRoom() {
           <div className="board-section">
             <h3>Board 2</h3>
             <div className="player-slots">
-              {[2, 3].map(pos => {
+              {[3, 2].map(pos => {
                 const player = roomState.players.find(p => p.position === pos);
                 return (
                   <div
                     key={pos}
                     className={`player-slot ${getTeamClass(pos)} ${player ? 'filled' : 'empty'}`}
                   >
-                    <div className="position-label">{pos === 2 ? 'White' : 'Black'}</div>
+                    <div className="position-label">{pos === 3 ? 'White' : 'Black'}</div>
                     {player ? (
                       <>
                         <div className="player-name">{player.name}</div>
