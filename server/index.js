@@ -122,7 +122,7 @@ const playerRooms = new Map(); // Maps socket.id to roomId
 // When Player 2 captures, piece goes to Player 0's bank (teammate)
 // When Player 3 captures, piece goes to Player 1's bank (teammate)
 
-function createRoom(roomId, hostName) {
+function createRoom(roomId, hostName, hostId = null) {
   return {
     id: roomId,
     players: [], // [{ id, name, ready, socketId }]
@@ -138,7 +138,8 @@ function createRoom(roomId, hostName) {
     },
     chat: [],
     createdAt: Date.now(),
-    hostName: hostName
+    hostName: hostName,
+    hostId: hostId
   };
 }
 
@@ -180,7 +181,8 @@ function broadcastRoomState(roomId) {
     gameStarted: room.gameStarted,
     boards: room.boards,
     pieceBanks: room.pieceBanks,
-    hostName: room.hostName
+    hostName: room.hostName,
+    hostId: room.hostId
   });
 }
 
@@ -256,6 +258,7 @@ io.on('connection', (socket) => {
     };
 
     room.players.push(player);
+    room.hostId = player.id;
     rooms.set(roomId, room);
     playerRooms.set(socket.id, roomId);
 
@@ -620,14 +623,26 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('restartGame', ({ roomId }) => {
+  socket.on('restartGame', ({ roomId, playerId }) => {
     // Security: Validate against socket's auth
-    if (socketAuth.roomId !== roomId) {
+    if (socketAuth.roomId !== roomId || socketAuth.playerId !== playerId) {
       return;
     }
 
     const room = rooms.get(roomId);
     if (!room) return;
+
+    const player = room.players.find(p => p.id === socketAuth.playerId);
+    if (!player) {
+      // Ignore requests from spectators or unknown users
+      return;
+    }
+
+    // Only allow the current host to restart the game
+    if (room.hostId && room.hostId !== player.id) {
+      socket.emit('moveError', { error: 'Only the host can restart the game.' });
+      return;
+    }
 
     // Reset game state
     room.boards = [createGameState(), createGameState()];
@@ -680,6 +695,12 @@ function handlePlayerLeave(socket, roomId, playerId) {
 
     // Reassign positions
     room.players.forEach((p, idx) => p.position = idx);
+
+    // If the host left, assign a new host from remaining players
+    if (playerId === room.hostId && room.players.length > 0) {
+      room.hostId = room.players[0].id;
+      room.hostName = room.players[0].name;
+    }
 
     if (room.players.length === 0) {
       rooms.delete(roomId);

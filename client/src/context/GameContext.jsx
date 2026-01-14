@@ -151,9 +151,9 @@ export function GameProvider({ children }) {
   }, [socket, roomId, playerId]);
 
   const restartGame = useCallback(() => {
-    if (!socket || !roomId) return;
-    socket.emit('restartGame', { roomId });
-  }, [socket, roomId]);
+    if (!socket || !roomId || !playerId) return;
+    socket.emit('restartGame', { roomId, playerId });
+  }, [socket, roomId, playerId]);
 
   const leaveRoom = useCallback(() => {
     if (!socket || !roomId || !playerId) return;

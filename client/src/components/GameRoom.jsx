@@ -9,6 +9,7 @@ function GameRoom() {
     roomId,
     roomState,
     gameState,
+    playerId,
     playerPosition,
     isSpectator,
     error,
@@ -37,6 +38,7 @@ function GameRoom() {
   }
 
   const { boards, pieceBanks } = gameState;
+  const isHost = !isSpectator && roomState?.hostId === playerId;
 
   // Get teammate position
   const getTeammate = (pos) => {
@@ -133,9 +135,16 @@ function GameRoom() {
               {gameOver.reason === 'stalemate' && `Stalemate on Board ${gameOver.boardIndex + 1}`}
             </p>
             <div className="game-over-actions">
-              <button className="btn btn-primary" onClick={restartGame}>
-                Play Again
-              </button>
+              {!isSpectator && (
+                <button
+                  className="btn btn-primary"
+                  onClick={restartGame}
+                  disabled={!isHost}
+                  title={isHost ? undefined : 'Only the host can restart the game'}
+                >
+                  Play Again
+                </button>
+              )}
               <button className="btn btn-secondary" onClick={leaveRoom}>
                 Leave Room
               </button>
