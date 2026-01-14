@@ -694,6 +694,12 @@ function handlePlayerLeave(socket, roomId, playerId) {
       }
       broadcastRoomState(roomId);
     }
+  } else {
+    const spectatorIndex = room.spectators.findIndex(s => s.id === playerId);
+    if (spectatorIndex !== -1) {
+      room.spectators.splice(spectatorIndex, 1);
+      broadcastRoomState(roomId);
+    }
   }
 
   socket.leave(roomId);
