@@ -526,6 +526,12 @@ io.on('connection', (socket) => {
         reason: 'checkmate',
         boardIndex: boardIndex
       });
+    } else if (result.gameState.isStalemate) {
+      io.to(roomId).emit('gameOver', {
+        winner: null,
+        reason: 'stalemate',
+        boardIndex: boardIndex
+      });
     }
   });
 
